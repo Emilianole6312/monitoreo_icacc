@@ -1,0 +1,110 @@
+Bootstrap: docker
+From: debian:12
+
+%post
+    # Exporta para modo no-interactivo
+    export DEBIAN_FRONTEND=noninteractive
+    export DEBCONF_NONINTERACTIVE_SEEN=true
+
+    # Actualiza paquetes base e instala dependencias para debconf y apt 
+    apt-get update && apt-get install -y wget \
+    gnupg2 \
+    curl \
+    lsb-release \
+    apt-utils \
+    debconf-utils \
+    snmp \
+    iproute2 \
+    net-tools \
+    apt-transport-https
+
+    echo "debconf debconf/frontend select Noninteractive" | debconf-set-selections
+    echo "ucf ucf/use_debian_new_config boolean true" | debconf-set-selections  # Para aceptar nueva versión de influxdata.list automáticamente (opción 1)
+
+    ### INSTALACION DE INFLUX #############################################################################
+    # Add the InfluxData key to verify downloads and add the repository
+    curl --silent --location -O https://repos.influxdata.com/influxdata-archive.key
+    gpg --show-keys --with-fingerprint --with-colons ./influxdata-archive.key 2>&1 \
+    | grep -q '^fpr:\+24C975CBA61A024EE1B631787C3D57159FC2F927:$' \
+    && cat influxdata-archive.key \
+    | gpg --dearmor \
+    |  tee /etc/apt/keyrings/influxdata-archive.gpg > /dev/null \
+    && echo 'deb [signed-by=/etc/apt/keyrings/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main' \
+    |  tee /etc/apt/sources.list.d/influxdata.list
+    # Install influxdb
+     apt-get update &&  apt-get install -y influxdb2
+    #############################################################################
+     
+    ### INSTALACION DE GRAFANA #########################################################################
+    mkdir -p /etc/apt/keyrings/
+    wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | tee /etc/apt/keyrings/grafana.gpg > /dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | tee -a /etc/apt/sources.list.d/grafana.list
+    apt-get update
+    apt-get install -y grafana
+    #############################################################################
+
+%environment
+    export INFLUXD_CONFIG_PATH=/etc/influxdb2/config.yml
+    export PATH=/usr/local/bin:$PATH
+    export INFLUX_HOST=${INFLUX_HOST:-http://localhost:8086}
+    export ORG=${ORG:-icacc}
+    export INFLUX_USER=${INFLUX_USER:-admin}
+    export INFLUX_PASS=${INFLUX_PASS:-admin123}
+    export INFLUX_BOOTSTRAP_TOKEN=${INFLUX_BOOTSTRAP_TOKEN:-TOKEN}
+    export INFLUX_BUCKET=${INFLUX_BUCKET:-temperatura}
+
+    # Grafana conf variables
+    export GF_PATHS_DATA=/var/lib/grafana
+    export GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+    export GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    export GF_SERVER_HTTP_PORT=${GF_SERVER_HTTP_PORT:-3000}
+%runscript
+    echo "Iniciando InfluxDB..."
+    /usr/bin/influxd &
+
+    INFLUX_PID=$!
+    
+
+    echo "[+] Esperando InfluxDB..."
+    until curl -s $INFLUX_HOST/health | grep -q pass; do
+        sleep 2
+    done
+
+    # ---------- SETUP SOLO SI NO EXISTE ----------
+    #if [ ! -f /data/influxd.bolt ]; then
+        echo "[!] InfluxDB no inicializado"
+
+        if [ -z "$INFLUX_BOOTSTRAP_TOKEN" ]; then
+            echo "ERROR: Debes definir INFLUX_BOOTSTRAP_TOKEN en el primer arranque"
+            exit 1
+        fi
+
+        influx setup \
+          --host $INFLUX_HOST \
+          --org $ORG \
+          --bucket temperatura \
+          --username $INFLUX_USER \
+          --password $INFLUX_PASS \
+          --token "$INFLUX_BOOTSTRAP_TOKEN" \
+          --force
+
+        echo "[+] Setup inicial completado"
+        echo "[!] RECUERDA: revoca el token bootstrap"
+    #fi
+    # --------------------------------------------
+
+    
+    
+    echo "Ejecutando script periódico"
+    while true; do
+        /bin/bash ./script.sh
+        sleep 60
+    done
+
+    wait $INFLUX_PID
+
+    
+
+%labels
+    Author Emiliano Lopez Esquivel
+    Version InfluxDB 2.x en Debian 12
