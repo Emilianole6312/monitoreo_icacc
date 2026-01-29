@@ -69,6 +69,21 @@ From: debian:12
     until curl -s $INFLUX_HOST/health | grep -q pass; do
         sleep 2
     done
+    echo "[+] InfluxDB está arriba"
+
+    echo "Iniciando Grafana..."
+    grafana-server \
+    --homepath /usr/share/grafana/ \
+    --config /etc/grafana/grafana.ini &
+    GRAFANA_PID=$!
+
+    set -x
+    echo "[+] Esperando Grafana..."
+    until curl -s http://localhost:3000/api/health | grep -q '"database": "ok"'; do
+        sleep 2
+    done
+
+    echo "[+] Grafana está arriba"
 
     # ---------- SETUP SOLO SI NO EXISTE ----------
     #if [ ! -f /data/influxd.bolt ]; then
@@ -102,6 +117,7 @@ From: debian:12
     done
 
     wait $INFLUX_PID
+    wait $GRAFANA_PID
 
     
 
