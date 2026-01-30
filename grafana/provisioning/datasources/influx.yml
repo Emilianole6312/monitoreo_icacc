@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: ${INFLUX_HOST}
+    jsonData:
+      version: Flux
+      organization: ${ORG}
+      defaultBucket: ${TEMPERATURA}
+    secureJsonData:
+      token: ${INFLUX_BOOTSTRAP_TOKEN}
