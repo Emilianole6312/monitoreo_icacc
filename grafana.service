@@ -1,0 +1,20 @@
+[Unit]
+Description=Grafana Container
+After=influxdb.service
+Requires=influxdb.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/containers
+EnvironmentFile=%h/containers/grafana.env
+
+ExecStart=/usr/bin/apptainer run \
+  --bind ./grafana/data:/var/lib/grafana \
+  --bind ./grafana/provisioning:/etc/grafana/provisioning:ro \
+  grafana.sif
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

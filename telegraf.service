@@ -1,0 +1,27 @@
+[Unit]
+Description=Telegraf Container
+After=influxdb.service
+Requires=influxdb.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/containers
+EnvironmentFile=%h/containers/telegraf.env
+
+ExecStart=/usr/bin/apptainer exec \
+  --bind ./telegraf:/etc/telegraf:ro \
+  --bind /proc:/host/proc:ro \
+  --bind /sys:/host/sys:ro \
+  --bind /:/hostfs:ro \
+  --env HOST_PROC=/host/proc \
+  --env HOST_SYS=/host/sys \
+  --env HOST_MOUNT_PREFIX=/hostfs \
+  telegraf.sif \
+  telegraf --config /etc/telegraf/telegraf.conf \
+           --config-directory /etc/telegraf/telegraf.d
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

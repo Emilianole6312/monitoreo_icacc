@@ -1,0 +1,19 @@
+[Unit]
+Description=InfluxDB Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/containers
+
+ExecStart=/usr/bin/apptainer run \
+  --bind ./influxdb/data:/var/lib/influxdb2 \
+  --bind ./influxdb/conf:/etc/influxdb2 \
+  influxdb.sif
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
