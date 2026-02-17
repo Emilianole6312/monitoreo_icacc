@@ -1,0 +1,4 @@
+[Unit]
+Description=Monitoring Stack (InfluxDB + Grafana + Telegraf)
+Wants=influxdb.service grafana.service telegraf.service
+After=influxdb.service grafana.service telegraf.service
