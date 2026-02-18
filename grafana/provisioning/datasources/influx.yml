@@ -7,7 +7,7 @@ datasources:
     url: ${INFLUX_HOST}
     jsonData:
       version: Flux
-      organization: ${ORG}
-      defaultBucket: ${TEMPERATURA}
+      organization: ${INFLUX_ORG}
+      defaultBucket: ${INFLUX_BUCKET}
     secureJsonData:
-      token: ${INFLUX_BOOTSTRAP_TOKEN}
+      token: ${INFLUX_TOKEN}
