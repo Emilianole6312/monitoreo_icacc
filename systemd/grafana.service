@@ -1,5 +1,6 @@
 [Unit]
 Description=Grafana Container
+ConditionHost=tlaloc.atmosfera.unam.mx
 After=influxdb.service
 Requires=influxdb.service
 
