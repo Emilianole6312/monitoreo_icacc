@@ -47,15 +47,29 @@ Grafana
 ---  
   
 # Instalación  
-  
-Este repositorio incluye un **script de instalación** que realiza automáticamente los siguientes pasos:  
-  
-1. Crea el directorio `~/containers`  
-2. Descarga los contenedores necesarios  
-3. Copia archivos de configuración  
-4. Instala los servicios de systemd  
-5. Habilita los servicios mediante `monitoreo.target`  
-6. Activa `linger` para permitir ejecución sin sesión iniciada  
+Para clonar el repositorio:
+```
+git clone https://github.com/Emilianole6312/monitoreo_icacc.git
+```
+Entramos al mismo:
+```
+cd monitoreo_icacc
+```
+Damos permisos de ejecución al script:
+```
+chmod +x ./install.sh
+```
+y lo ejecutamos:
+```
+./install.sh
+```
+Este repositorio incluye un **script de instalación** que realiza automáticamente los siguientes pasos:    
+1. Crea el directorio `~/containers`.
+2. Descarga las imágenes de los contenedores de los servicios usados desde DockerHub y los guarda en `~/containers`.
+3. Copia archivos de plantillas de archivos de configuración a `~/containers` .
+4. Instala los servicios de systemd solo para el usuario .
+5. Habilita los servicios mediante `monitoreo.target`  .
+6. Activa `linger` para permitir ejecución de los servicios sin sesión iniciada.  
   
 Estructura creada:  
 ```
@@ -66,73 +80,89 @@ Estructura creada:
 ├── grafana  
 │ ├── data  
 │ └── provisioning  
-└── telegraf  
+├── telegraf  
 ├── telegraf.conf  
 └── telegraf.d
 ```
   
-Una vez instalado el sistema los servicios pueden iniciarse con:  
+Una vez instalado el sistema los servicios pueden iniciarse con el siguiente comando
   
 ```bash  
 systemctl --user start monitoreo.target
 ```
+
+Pero primero se debe llenar los archivos de configuración en `~/containers`, lo cual se explica en la siguiente sección.
+
+## $DBUS_SESSION_BUS_ADDRESS
+Para la ejecución de este script es necesario contar con una sesion iniciada, puede ser verificado con:
+```
+systemctl --user
+```
+Si recibes un mensaje como:
+```
+Failed to connect to bus: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)Failed to connect to bus: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)
+```
+inicial sesión antes de ejecutar el script, de lo contrario este simplemente colocara los archivos necesarios para que el sistema funcione, pero no se activaran los servicios.
 
 ---
 
 # Configuración
 
 ## InfluxDB
-
-Inicializar InfluxDB con variables de entorno:
+Antes de activar los servicios es necesario Inicializar InfluxDB con variables de entorno, para ello copia y pega el siguiente comando sustituyendo las variables por sus valores ($VARIABLE) o declarando las variables antes de usarlas (\$VARIABLE=VALOR).
 ```
-apptainer run \  
---bind ~/containers/influxdb/data:/var/lib/influxdb2 \  
---bind ~/containers/influxdb/conf:/etc/influxdb2 \  
---env DOCKER_INFLUXDB_INIT_MODE=setup \  
---env DOCKER_INFLUXDB_INIT_USERNAME=<ADMIN_USER> \  
---env DOCKER_INFLUXDB_INIT_PASSWORD=<ADMIN_PASSWORD> \  
---env DOCKER_INFLUXDB_INIT_ORG=icacc \  
---env DOCKER_INFLUXDB_INIT_BUCKET=monitoreo \  
---env DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=<ADMIN_TOKEN> \  
-influxdb.sif
+apptainer run \
+--bind ~/containers/influxdb/data:/var/lib/influxdb2 \
+--bind ~/containers/influxdb/conf:/etc/influxdb2 \
+--env DOCKER_INFLUXDB_INIT_MODE=setup \
+--env DOCKER_INFLUXDB_INIT_USERNAME=$ADMIN_USER \
+--env DOCKER_INFLUXDB_INIT_PASSWORD=$ADMIN_PASSWORD \
+--env DOCKER_INFLUXDB_INIT_ORG=$ORG \
+--env DOCKER_INFLUXDB_INIT_BUCKET=$BUCKET \
+--env DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=$ADMIN_TOKEN \
+~/containers/influxdb.sif
 ```
 Después es necesario generar **tokens con privilegios mínimos** para Grafana y Telegraf.
 
-Obtener el `bucket ID`:
+Para ello primero es necesario obtener el `bucket ID`:
 ```
-apptainer exec influxdb.sif influx bucket list \  
---org icacc \  
---token "$TOKEN"
+apptainer exec ~/containers/influxdb.sif influx bucket list \
+--org $ORG \
+--token $ADMIN_TOKEN
 ```
-Crear token de solo lectura para Grafana:
+Copia el id de tu bucket y guárdalo en la variable `$BUCKET_ID`
+![[bucket_id.png]]
+Crear token de solo lectura para Grafana y guárdalo en `~/containers/grafana.env` en la variable `INFLUX_TOKEN`
 ```
-apptainer exec influxdb.sif influx auth create \  
---org icacc \  
---read-bucket $BUCKET \  
---description "grafana-read-only"
+apptainer exec ~/containers/influxdb.sif influx auth create \
+--org $ORG \
+--read-bucket $BUCKET_ID \
+--token $ADMIN_TOKEN
 ```
-Crear token de escritura para Telegraf:
+Crear token de escritura para Telegraf y guárdalo en `~/containers/telegraf.env` en la variable INFLUX_TOKEN:
 ```
+apptainer exec ~/containers/influxdb.sif influx auth create \
+--org $ORG \
+--write-bucket $BUCKET_ID \
+--token $ADMIN_TOKEN
+```
+En caso de requerir el servicio en otro puerto basta con cambiar el mismo en `~/containers/influxdb.env` en la variable `INFLUXD_HTTP_BIND_ADDRESS`  y reiniciar el servicio.
 
-apptainer exec influxdb.sif influx auth create \  
---org icacc \  
---write-bucket $BUCKET \  
---description "telegraf-writer"
-```
 ---
 
 ## Grafana
 
-Inicializar Grafana:
+Inicializar Grafana sustituyendo `<admin>` y `<password>`:
 ```
-apptainer run \  
---bind ~/containers/grafana/data:/var/lib/grafana \  
---bind ~/containers/grafana/provisioning:/etc/grafana/provisioning:ro \  
---env GF_SECURITY_ADMIN_USER=admin \  
---env GF_SECURITY_ADMIN_PASSWORD=<PASSWORD> \  
+apptainer run \
+--bind ~/containers/grafana/data:/var/lib/grafana \
+--bind ~/containers/grafana/provisioning:/etc/grafana/provisioning:ro \
+--env GF_SECURITY_ADMIN_USER=<admin> \
+--env GF_SECURITY_ADMIN_PASSWORD=<PASSWORD> \
 grafana.sif
 ```
-Después colocar el token de lectura de InfluxDB en`grafana.env`, en la variable `INFLUX_TOKEN`.
+Después colocar el token de lectura de InfluxDB en`grafana.env`, en la variable `INFLUX_TOKEN` y llenar las demás variables.
+En caso de requerir el servicio en otro puerto basta con cambiar el mismo en `~/containers/grafana.env` en la variable `GF_SERVER_HTTP_PORT`  y reiniciar el servicio.
 
 ---
 
@@ -153,6 +183,19 @@ telegraf \
 --config /etc/telegraf/telegraf.conf \  
 --config-directory /etc/telegraf/telegraf.d
 ```
+Si se cambio el puerto de InfluxDB es necesario actualizar `INFLUX_URL` en `~/containerts/telegraf.env`
+
+### Configuración de SNMP V1 en AP8841
+
+Para configurar SNMPv1 en la  PDU netshelter AP8841 es necesario que esta tenga dirección ip asignada, a la cual accederemos a través de un navegador. Las credenciales por defecto son:
+- Usuario: `apc`
+- Password: apc
+Luego accederemos a `Configuration > Network > SNMPv1 > Access`
+![[AP8841 SNMPv1 enable.png]]
+
+Para activar SNMPv1
+![[enable SNMPv1.png]]
+
 ---
 
 # Visualización en Grafana
@@ -161,14 +204,13 @@ Una vez desplegado el sistema se puede acceder a:
 ```
 http://localhost:8086
 ```
-para verificar que InfluxDB esté recibiendo datos.
+para verificar que InfluxDB esté recibiendo datos accediendo con las credenciales que definimos y entrando al menú.
 
 Grafana se encuentra en:
 ```
 http://localhost:3000
 ```
 En Grafana se pueden crear dashboards usando **queries Flux** como los siguientes.
-
 ## Temperatura de PDU
 ```
 from(bucket: "monitoreo")  
@@ -202,6 +244,8 @@ from(bucket: "monitoreo")
 |> filter(fn: (r) => r._field == "used_percent")  
 |> yield(name: "disk_used_percent")
 ```
+Para mas informacion sobre como crear un dashboard consultar  [# Build your first dashboard[](https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/#build-your-first-dashboard)](https://grafana.com/docs/grafana/latest/fundamentals/getting-started/first-dashboards/) 
+
 ---
 
 # Problemas encontrados
@@ -274,10 +318,21 @@ Se intentó replicar el entorno utilizado en un proyecto anterior utilizando **A
   
 El resultado fue el mismo: SNMP continuaba sin poder adoptar correctamente los OIDs definidos en la MIB.  
 
-## Configuración para activar dashboards públicos
-## Conclusión  
-  
-Debido a estos problemas se optó por identificar manualmente los OIDs relevantes mediante `snmpwalk` y verificar los valores devueltos comparándolos con la información mostrada en la interfaz web de la PDU.
+## Consulta por ssh con expect
+Otra opcion fue consultar la temperatura por ssh y luego automatizar este proceso con un script que realiza una conexion por ssh para ejecutar un comando de consulta a la temperatura para posteriormente guardarla en InfluxDB.
+## Solución
+Finalmente después de probar varios MiB probados encontré uno que coincidía con los valores reportados por ssh o por la interfaz web por lo que finalmente no fue necesario usar el script de consulta con ssh y expect.
+
+---
+# Configuración para activar dashboards públicos
+Grafana ofrece la opción de hacer dashboards públicos los cuales pueden visualizarse sin necesidad de credenciales de acceso, para ello es necesario definir la variable `GF_PUBLIC_DASHBOARDS_ENABLED` en `true`, para ello podemos simplemente agregarlo al final de `~/containers/grafana.env` y `GF_SERVER_DOMAIN= ${HOSTNAME}` para que los enlaces generados contengan el nombre del servidor en lugar de localhost con:
+```
+echo -e "GF_PUBLIC_DASHBOARDS_ENABLED=true\nGF_SERVER_DOMAIN=${HOSTNAME}" >> ~/containers/grafana.env
+```
+# Conclusiones
+El desarrollo de este sistema de monitoreo en un clúster HPC fue un trabajo que me permitió adquirir bastantes conocimientos, así como asentar otros de manera practica. Trabajar con un servidor Linux que se usa en entornos de producción fue una experiencia muy valiosa que me permitió desarrollar conocimientos con tecnologías actuales y que siguen en crecimiento como lo son los contenedores.
+Además, al realizar mis labores puse en practica mis conocimientos sobre redes de computadoras, lo cual me permitió reforzarlos e incluso notar errores en mi comprensión del tema cuando las cosas no funcionaban como lo tenia planeado.
+Por ultimo, el trabajar con el stack `InfluxDB + Grafana + Telegraf` fue bastante  valioso, pues como pude comprobar durante el desarrollo de mi servicio son herramientas ampliamente utilizadas en IT y cuyo manejo probablemente me pueda dar paso a nuevas oportunidades laborales.
 # Referencias
 
 - [https://www.influxdata.com](https://www.influxdata.com)
