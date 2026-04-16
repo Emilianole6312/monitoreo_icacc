@@ -47,6 +47,16 @@ Grafana
 ---  
   
 # Instalación  
+Este repositorio incluye un **script de instalación** (`./install.sh`) que realiza automáticamente los siguientes pasos:    
+1. Crea el directorio `~/containers`.
+2. Hace pull de las imágenes de los siguientes servicios desde DockerHub y los guarda en `~/containers`.
+    - InfluxDB 3.8.x 
+    - Grafana 12.4.x
+    - Telegraf 1.38.2
+3. Copia archivos de plantillas de archivos de configuración a `~/containers`.
+4. Instala los servicios de systemd solo para el usuario.
+5. Habilita los servicios mediante `monitoreo.target`.
+6. Activa `linger` para permitir ejecución de los servicios sin sesión iniciada.  
 Para clonar el repositorio:
 ```
 git clone https://github.com/Emilianole6312/monitoreo_icacc.git
@@ -63,13 +73,6 @@ y lo ejecutamos:
 ```
 ./install.sh
 ```
-Este repositorio incluye un **script de instalación** que realiza automáticamente los siguientes pasos:    
-1. Crea el directorio `~/containers`.
-2. Descarga las imágenes de los contenedores de los servicios usados desde DockerHub y los guarda en `~/containers`.
-3. Copia archivos de plantillas de archivos de configuración a `~/containers` .
-4. Instala los servicios de systemd solo para el usuario .
-5. Habilita los servicios mediante `monitoreo.target`  .
-6. Activa `linger` para permitir ejecución de los servicios sin sesión iniciada.  
   
 Estructura creada:  
 ```
@@ -101,7 +104,6 @@ systemctl --user
 Si recibes un mensaje como:
 ![descripcion](assets/XDG_RUNTIME_DIR.png)
 Inicia sesión antes de ejecutar el script, de lo contrario este simplemente colocara los archivos necesarios para que el sistema funcione, pero no se activaran los servicios.
-
 ---
 
 # Configuración
@@ -266,13 +268,13 @@ Además, la herramienta `snmp-mib-downloader` fue retirada de los repositorios o
 
 Para habilitar acceso completo a los sensores fue necesario actualizar el firmware de las PDUs **APC AP8841**.
 
-El firmware se puede descargar desde el sitio de **Schneider Electric**.
+El firmware se puede descargar desde el sitio de [**Schneider Electric**](https://www.se.com/mx/es/product/AP8841/unidad-pdu-2g-para-rack-con-instrumentación-no-ocupa-espacio-en-u-30-a-200-208-v-36-c13-y-6-c19/) (hasta abajo en la seccion Software) en su ultima version, o en su defecto este repositorio incluye los archivos necesarios para actualizar a la version 7.26.
 
 La actualización puede realizarse mediante **FTP** cargando los archivos en el siguiente orden:
 
-1. `bootmon`
-2. `aos`
-3. `rpdu2g`
+1. `apc_hw05_bootmon_109.bin`
+2. `apc_hw05_aos_72.bin2`
+3. `apc_hw05_rpdu2g_726.bin`
 
 ---
 # Soluciones intentadas sin éxito  
