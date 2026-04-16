@@ -99,10 +99,8 @@ Para la ejecución de este script es necesario contar con una sesion iniciada, p
 systemctl --user
 ```
 Si recibes un mensaje como:
-```
-Failed to connect to bus: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)Failed to connect to bus: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=<user>@.host --user to connect to bus of other user)
-```
-inicial sesión antes de ejecutar el script, de lo contrario este simplemente colocara los archivos necesarios para que el sistema funcione, pero no se activaran los servicios.
+![descripcion](assets/XDG_RUNTIME_DIR.png)
+Inicia sesión antes de ejecutar el script, de lo contrario este simplemente colocara los archivos necesarios para que el sistema funcione, pero no se activaran los servicios.
 
 ---
 
