@@ -131,7 +131,7 @@ apptainer exec ~/containers/influxdb.sif influx bucket list \
 --token $ADMIN_TOKEN
 ```
 Copia el id de tu bucket y guárdalo en la variable `$BUCKET_ID`
-![[bucket_id.png]]
+![descripcion](assets/enable SNMPv1.png)
 Crear token de solo lectura para Grafana y guárdalo en `~/containers/grafana.env` en la variable `INFLUX_TOKEN`
 ```
 apptainer exec ~/containers/influxdb.sif influx auth create \
@@ -191,8 +191,7 @@ Para configurar SNMPv1 en la  PDU netshelter AP8841 es necesario que esta tenga 
 - Usuario: `apc`
 - Password: apc
 Luego accederemos a `Configuration > Network > SNMPv1 > Access`
-![[AP8841 SNMPv1 enable.png]]
-
+![descripcion](assets/AP8841 SNMPv1 enable.png)
 Para activar SNMPv1
 ![[enable SNMPv1.png]]
 
